@@ -21,6 +21,8 @@ if "chat_session" not in st.session_state:
     st.session_state.chat_session = None
 if "chat_ready" not in st.session_state:
     st.session_state.chat_ready = False
+if "gemini_client" not in st.session_state: # <--- THÊM BIẾN LƯU CLIENT
+    st.session_state.gemini_client = None     # <--- THÊM BIẾN LƯU CLIENT
 
 # --- Hàm tính toán chính (Sử dụng Caching để Tối ưu hiệu suất) ---
 @st.cache_data
@@ -97,8 +99,10 @@ def initialize_gemini_chat(data_for_ai, api_key):
     """Khởi tạo phiên chat Gemini với ngữ cảnh là dữ liệu tài chính."""
     if st.session_state.chat_session is None:
         try:
-            # 1. Khởi tạo Client
+            # 1. Khởi tạo Client VÀ LƯU VÀO STATE (FIX LỖI CLIENT CLOSED)
             client = genai.Client(api_key=api_key)
+            st.session_state.gemini_client = client # <--- LƯU CLIENT VÀO STATE
+            
             model_name = 'gemini-2.5-flash'
             
             # 2. Định nghĩa System Instruction (Context)
@@ -117,8 +121,8 @@ def initialize_gemini_chat(data_for_ai, api_key):
                 system_instruction=system_instruction
             )
             
-            # 4. Tạo Chat Session, truyền config
-            chat = client.chats.create(
+            # 4. Tạo Chat Session, sử dụng CLIENT ĐÃ LƯU và truyền config
+            chat = st.session_state.gemini_client.chats.create( # <--- SỬ DỤNG CLIENT ĐÃ LƯU
                 model=model_name,
                 config=chat_config # <--- TRUYỀN CONFIG VÀO ĐÂY
             )
@@ -133,9 +137,11 @@ def initialize_gemini_chat(data_for_ai, api_key):
         except APIError:
             st.sidebar.error("Lỗi API: Vui lòng kiểm tra Khóa API Gemini.")
             st.session_state.chat_ready = False
+            st.session_state.gemini_client = None # Cleanup
         except Exception as e:
             st.sidebar.error(f"Lỗi không xác định khi khởi tạo chat: {e}")
             st.session_state.chat_ready = False
+            st.session_state.gemini_client = None # Cleanup
 
 def render_chat_sidebar(data_for_ai):
     """Vẽ giao diện khung chat trên sidebar."""
@@ -158,6 +164,7 @@ def render_chat_sidebar(data_for_ai):
     if st.session_state.chat_ready:
         if st.sidebar.button("Reset Chat", type="secondary"):
             st.session_state.chat_session = None
+            st.session_state.gemini_client = None # <--- THÊM RESET CLIENT
             st.session_state.messages = []
             st.session_state.chat_ready = False
             # Dùng st.experimental_rerun() để làm mới giao diện
@@ -320,11 +327,13 @@ if uploaded_file is not None:
     except ValueError as ve:
         st.error(f"Lỗi cấu trúc dữ liệu: {ve}")
         st.session_state.chat_session = None
+        st.session_state.gemini_client = None
         st.session_state.messages = []
         st.session_state.chat_ready = False
     except Exception as e:
         st.error(f"Có lỗi xảy ra khi đọc hoặc xử lý file: {e}. Vui lòng kiểm tra định dạng file.")
         st.session_state.chat_session = None
+        st.session_state.gemini_client = None
         st.session_state.messages = []
         st.session_state.chat_ready = False
 

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from google import genai
 from google.genai.errors import APIError
+from google.genai import types # <--- THÊM IMPORT NÀY
 
 # --- Cấu hình Trang Streamlit ---
 st.set_page_config(
@@ -111,15 +112,20 @@ def initialize_gemini_chat(data_for_ai, api_key):
             Hãy trả lời các câu hỏi của người dùng về dữ liệu này, duy trì ngữ cảnh tài chính và đưa ra những nhận xét chuyên sâu, khách quan. Không cần lặp lại dữ liệu trên trong câu trả lời, chỉ cần trả lời câu hỏi.
             """
             
-            # 3. Tạo Chat Session
+            # 3. Tạo Generation Config để chứa System Instruction (FIX LỖI)
+            chat_config = types.GenerateContentConfig(
+                system_instruction=system_instruction
+            )
+            
+            # 4. Tạo Chat Session, truyền config
             chat = client.chats.create(
                 model=model_name,
-                system_instruction=system_instruction
+                config=chat_config # <--- TRUYỀN CONFIG VÀO ĐÂY
             )
             
             st.session_state.chat_session = chat
             
-            # 4. Tin nhắn chào mừng
+            # 5. Tin nhắn chào mừng
             st.session_state.messages = [] # Reset messages
             st.session_state.messages.append({"role": "assistant", "content": "Chào bạn! Tôi là Hatyx AI. Dữ liệu tài chính của bạn đã sẵn sàng. Hãy hỏi tôi về **tốc độ tăng trưởng**, **cơ cấu tài sản**, hoặc bất kỳ chỉ số nào trong báo cáo này."})
             st.session_state.chat_ready = True
